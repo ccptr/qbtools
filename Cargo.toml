@@ -1,0 +1,38 @@
+[package]
+name = "qbtools"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+opt-level = 's'
+lto = true
+
+[profile.release-no-lto]
+inherits = "release"
+lto = false
+
+
+[features]
+default = ["export", "toml", "yaml"]
+export = []
+toml = ["dep:toml"]
+yaml = ["dep:serde_yaml"]
+
+[dependencies]
+clap = { version = "3.2", default-features = false, features = ["derive", "std", "suggestions"] }
+env_logger = "0.9"
+http = "0.2"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+
+serde_json = { version = "1.0" } # required for authorization workflow
+
+serde_yaml = { version = "0.8", optional = true }
+toml = { version = "0.5", optional = true }
+
+
+# custom libraries/dependencies
+quickbooks-types = { path = "../quickbooks-types" }
+quickbooks-ureq  = { path = "../quickbooks-ureq" }
