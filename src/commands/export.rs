@@ -15,7 +15,7 @@ pub struct ExportItemsArgs {
 pub fn items(args: &ExportItemsArgs) {
     let qb = get_authorized_qb(args.quiet);
 
-    match qb.list_items() {
+    match qb.query_items(Default::default()) {
         Ok(response) => {
             let response: serde_json::Value = response
                 .into_json()
