@@ -15,7 +15,9 @@ use quickbooks_ureq::{config::QuickbooksConfig, constants::base_url};
 
 const BASE_CONFIG_PATH: &str = "qb-api-cfg";
 
-//const QB_BASE_URL: &str = base_url::PRODUCTION;
+#[cfg(feature = "production")]
+const QB_BASE_URL: &str = base_url::PRODUCTION;
+#[cfg(not(feature = "production"))]
 const QB_BASE_URL: &str = base_url::SANDBOX;
 
 fn main() {

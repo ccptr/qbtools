@@ -17,6 +17,7 @@ lto = false
 [features]
 default = ["export", "toml", "yaml"]
 export = []
+production = []
 toml = ["dep:toml"]
 yaml = ["dep:serde_yaml"]
 
