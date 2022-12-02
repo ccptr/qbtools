@@ -51,8 +51,8 @@ pub fn get_extension<S>(path: &S) -> String
 where
     S: AsRef<OsStr> + ?Sized,
 {
-    let path = Path::new(path);
-    path.extension()
+    Path::new(path)
+        .extension()
         .expect("programming error?")
         .to_string_lossy()
         .to_string()
@@ -97,10 +97,10 @@ pub mod util {
     /// ```
     /// use util::append;
     /// use std::path::PathBuf;
+    /// 
     /// let path = PathBuf::from("foo/bar/baz.txt");
-    ///    assert_eq!(append(path, ".app"), PathBuf::from("foo/bar/baz.txt.app"));
+    /// assert_eq!(append(path, ".app"), PathBuf::from("foo/bar/baz.txt.app"));
     /// ```
-    ///
     pub fn append<S: AsRef<OsStr> + ?Sized>(path: &S, ext: impl AsRef<OsStr>) -> PathBuf {
         let mut os_string: OsString = path.into();
 
