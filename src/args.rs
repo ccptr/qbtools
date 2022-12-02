@@ -47,6 +47,16 @@ pub enum OutputFormat {
     Yaml,
 }
 
+impl OutputFormat {
+    pub const fn as_str(&self) -> &str {
+        match self {
+            Self::Json => "json",
+            Self::Toml => "toml",
+            Self::Yaml => "yaml",
+        }
+    }
+}
+
 impl Default for OutputFormat {
     fn default() -> Self {
         Self::Json
@@ -69,10 +79,6 @@ impl FromStr for OutputFormat {
 
 impl ToString for OutputFormat {
     fn to_string(&self) -> String {
-        match self {
-            Self::Json => "json".to_string(),
-            Self::Toml => "toml".to_string(),
-            Self::Yaml => "yaml".to_string(),
-        }
+        self.as_str().to_string()
     }
 }

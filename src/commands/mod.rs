@@ -17,7 +17,7 @@ where
         result.unwrap_or_else(|err| {
             panic!(
                 "failed to serialize value to output_path as {}: {:?}",
-                format.to_string(),
+                format.as_str(),
                 err
             )
         })
@@ -36,7 +36,7 @@ where
                         .unwrap_or_else(|err| {
                             panic!(
                                 "failed to serialize value to {}: {}",
-                                format.to_string(),
+                                format.as_str(),
                                 err
                             )
                         })
