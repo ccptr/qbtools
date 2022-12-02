@@ -28,8 +28,8 @@ fn main() {
         #[cfg(feature = "export")]
         Command::Export { command } => match command {
             ExportCommand::Items {
-                output_path,
                 format,
+                output_path,
             } => commands::export::items(&ExportItemsArgs {
                 quiet: args.quiet,
                 verbose: args.verbose,
