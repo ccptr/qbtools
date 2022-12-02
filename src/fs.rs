@@ -63,7 +63,9 @@ pub fn get_first_file(base_path: &Path) -> PathBuf {
     #[cfg(feature = "toml")]
     let toml_file = util::append(base_path, ".toml");
 
+    #[cfg(feature = "yaml")]
     let yaml_file = util::append(base_path, ".yaml");
+    #[cfg(feature = "yaml")]
     let yml_file = util::append(base_path, ".yml");
 
     let json_file = util::append(base_path, ".json");
@@ -72,9 +74,11 @@ pub fn get_first_file(base_path: &Path) -> PathBuf {
     if toml_file.is_file() {
         return toml_file;
     }
+    #[cfg(feature = "yaml")]
     if yaml_file.is_file() {
         return yaml_file;
     }
+    #[cfg(feature = "yaml")]
     if yml_file.is_file() {
         return yml_file;
     }
