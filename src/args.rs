@@ -31,14 +31,14 @@ pub enum Command {
 #[derive(Debug, PartialEq, Subcommand)]
 pub enum ExportCommand {
     Items {
-        #[clap(default_value_t, short, long)]
+        #[clap(short, long, default_value_t)]
         format: OutputFormat,
-        #[clap(short, long, parse(from_os_str))]
+        #[clap(short, long)]
         output_path: Option<std::path::PathBuf>,
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OutputFormat {
     Json,
     #[cfg(feature = "toml")]
