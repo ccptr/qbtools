@@ -128,7 +128,7 @@ impl Config {
 
         std::fs::write(file, out)?;
 
-        return Ok(());
+        Ok(())
     }
 }
 

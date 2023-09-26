@@ -19,10 +19,7 @@ pub fn customers(
     customer_args: &ExportCustomerArgs,
 ) -> Result<(), CommandError> {
     let options = QueryConfig {
-        r#where: customer_args
-            .r#where
-            .as_ref()
-            .map(|r#where| r#where.as_str()),
+        r#where: customer_args.r#where.as_deref(),
         ..Default::default()
     };
 

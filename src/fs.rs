@@ -45,7 +45,7 @@ pub fn read_config<T>(base_path: &Path) -> Result<T, Error>
 where
     T: DeserializeOwned,
 {
-    return deserialize(&get_first_file(base_path));
+    deserialize(&get_first_file(base_path))
 }
 
 pub fn get_extension<S>(path: &S) -> String
@@ -125,11 +125,11 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Deserialize(msg) => match msg {
-                Some(msg) => return write!(f, "Deserialize(\"{}\")", msg),
-                None => return write!(f, "Deserialize(None)"),
+                Some(msg) => write!(f, "Deserialize(\"{}\")", msg),
+                None => write!(f, "Deserialize(None)"),
             },
             Self::IO(error) => {
-                return write!(f, "IO({})", error);
+                write!(f, "IO({})", error)
             }
         }
     }

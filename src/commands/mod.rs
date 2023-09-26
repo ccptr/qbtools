@@ -109,7 +109,7 @@ fn process_response_for_desired_array(
 ) -> Result<serde_json::Value, CommandError> {
     let mut response: serde_json::Value = response
         .into_json()
-        .map_err(|err| CommandError::FailedToSerializeResponse(err))?;
+        .map_err(CommandError::FailedToSerializeResponse)?;
 
     let values = response
         .get_mut("QueryResponse")
@@ -179,7 +179,7 @@ where
                     "failed to serialize/write value to output_path as {}: {err:?}",
                     format.as_str()
                 );
-                return Err(OutputError::from(err));
+                Err(OutputError::from(err))
             }
         }
     }
