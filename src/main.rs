@@ -1,41 +1,33 @@
-#![allow(clippy::needless_return)]
+pub use quickbooks_ureq;
 
-mod args;
-mod commands;
-mod config;
-mod fs;
-
-use args::*;
-use clap::Parser;
-use commands::export::ExportItemsArgs;
-
-use std::process::exit;
-
-use quickbooks_ureq::{config::QuickbooksConfig, constants::base_url};
-
-const BASE_CONFIG_PATH: &str = "qb-api-cfg";
-
-#[cfg(feature = "production")]
-const QB_BASE_URL: &str = base_url::PRODUCTION;
-#[cfg(not(feature = "production"))]
-const QB_BASE_URL: &str = base_url::SANDBOX;
+#[cfg(feature = "interactive")]
+use std::ffi::OsStr;
+use std::ffi::OsString;
 
 fn main() {
     env_logger::init();
-    let args = Args::parse();
+    #[allow(unused_mut)]
+    let mut args: Vec<OsString> = std::env::args_os().collect();
 
-    match args.command {
-        #[cfg(feature = "export")]
-        Command::Export { command } => match command {
-            ExportCommand::Items {
-                format,
-                output_path,
-            } => commands::export::items(&ExportItemsArgs {
-                quiet: args.quiet,
-                verbose: args.verbose,
-                output_path,
-                format,
-            }),
-        },
+    // TODO: add to --help output
+    #[cfg(feature = "interactive")]
+    let interactive = if let Some(index) = args.iter().position(|arg| arg == OsStr::new("-i")) {
+        args.remove(index);
+        true
+    } else {
+        false
+    };
+
+    let args = args.into_iter();
+
+    #[cfg(feature = "interactive")]
+    if interactive {
+        qbtools::main_interactive(args);
+    } else {
+        #[cfg(feature = "cmdline")]
+        qbtools::main_cmdline(args);
     }
+
+    #[cfg(all(feature = "cmdline", not(feature = "interactive")))]
+    qbtools::main_cmdline(args);
 }

@@ -13,10 +13,11 @@ fn deserialize<S: AsRef<OsStr> + ?Sized, T: DeserializeOwned>(path: &S) -> Resul
     let data = std::fs::read_to_string(path)?;
 
     Ok(match get_extension(path).as_str() {
+        "json"         => serde_json::from_str(&data)?,
         #[cfg(feature = "toml")]
         "toml"         =>       toml::from_str(&data)?,
+        #[cfg(feature = "yaml")]
         "yaml" | "yml" => serde_yaml::from_str(&data)?,
-        "json"         => serde_json::from_str(&data)?,
         _ => panic!("programming error?"),
     })
 }
@@ -30,7 +31,7 @@ pub const SUPPORTED_CONFIG_TYPES: [&str; 2] = ["yaml", "json"];
 /// # Example
 /// ```
 /// let files = fs::get_possible_files("foo/bar");
-///    assert_eq!(files, "foo/bar.{toml,yaml,json}".to_string());
+///    assert_eq!(files, "foo/bar.{json,toml,yaml}".to_string());
 ///    // AKA
 ///    assert_eq!(files, format!("foo/bar.{{{}}}", SUPPORTED_CONFIG_TYPES.join(",")));
 /// ```
@@ -58,8 +59,11 @@ where
         .to_string()
 }
 
-/// Returns the first data file that exists, defaulting to `base_path.yml`. Follows (Go)Hugo's lookup order.
+/// Returns the first data file that exists, defaulting to `base-path.json` if none exist. Lookup
+/// order:
 pub fn get_first_file(base_path: &Path) -> PathBuf {
+    let json_file = util::append(base_path, ".json");
+
     #[cfg(feature = "toml")]
     let toml_file = util::append(base_path, ".toml");
 
@@ -68,8 +72,9 @@ pub fn get_first_file(base_path: &Path) -> PathBuf {
     #[cfg(feature = "yaml")]
     let yml_file = util::append(base_path, ".yml");
 
-    let json_file = util::append(base_path, ".json");
-
+    if json_file.is_file() {
+        return json_file;
+    }
     #[cfg(feature = "toml")]
     if toml_file.is_file() {
         return toml_file;
@@ -82,12 +87,9 @@ pub fn get_first_file(base_path: &Path) -> PathBuf {
     if yml_file.is_file() {
         return yml_file;
     }
-    if json_file.is_file() {
-        return json_file;
-    }
 
-    // return default (YAML) file if none exists
-    return yml_file;
+    // return default (JSON) file if none exists
+    json_file
 }
 
 pub mod util {
@@ -100,17 +102,16 @@ pub mod util {
     /// # Example
     /// ```
     /// use util::append;
-    /// use std::path::PathBuf;
-    /// 
-    /// let path = PathBuf::from("foo/bar/baz.txt");
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let path = Path::new("foo/bar/baz.txt");
     /// assert_eq!(append(path, ".app"), PathBuf::from("foo/bar/baz.txt.app"));
     /// ```
-    pub fn append<S: AsRef<OsStr> + ?Sized>(path: &S, ext: impl AsRef<OsStr>) -> PathBuf {
+    pub fn append<P: AsRef<OsStr> + ?Sized>(path: &P, ext: impl AsRef<OsStr>) -> PathBuf {
         let mut os_string: OsString = path.into();
 
         os_string.push(ext.as_ref());
-
-        return os_string.into();
+        os_string.into()
     }
 }
 
@@ -153,15 +154,16 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<serde_yaml::Error> for Error {
-    fn from(_error: serde_yaml::Error) -> Self {
+#[cfg(feature = "toml")]
+impl From<toml::de::Error> for Error {
+    fn from(_error: toml::de::Error) -> Self {
         Self::Deserialize(None)
     }
 }
 
-#[cfg(feature = "toml")]
-impl From<toml::de::Error> for Error {
-    fn from(_error: toml::de::Error) -> Self {
+#[cfg(feature = "yaml")]
+impl From<serde_yaml::Error> for Error {
+    fn from(_error: serde_yaml::Error) -> Self {
         Self::Deserialize(None)
     }
 }

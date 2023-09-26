@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
@@ -20,22 +20,50 @@ pub struct Args {
 
 #[derive(Debug, PartialEq, Subcommand)]
 pub enum Command {
-    #[cfg(feature = "export")]
+    #[cfg(feature = "cmd-export")]
     Export {
+        #[arg(short, long, default_value = "json")]
+        format: Option<OutputFormat>,
+        #[arg(short, long)]
+        output_path: Option<PathBuf>,
+        #[arg(long)]
+        pretty: bool,
+
         #[clap(subcommand)]
-        command: ExportCommand,
+        command: ExportCommands,
+    },
+    #[cfg(feature = "cmd-get")]
+    Get {
+        #[arg(short, long, default_value = "json")]
+        format: Option<OutputFormat>,
+        #[arg(long)]
+        id: String,
+        #[arg(short, long)]
+        output_path: Option<PathBuf>,
+
+        #[clap(subcommand)]
+        command: GetCommands,
     },
 }
 
-#[cfg(feature = "export")]
+#[cfg(feature = "cmd-export")]
 #[derive(Debug, PartialEq, Subcommand)]
-pub enum ExportCommand {
-    Items {
-        #[clap(short, long, default_value_t)]
-        format: OutputFormat,
-        #[clap(short, long)]
-        output_path: Option<std::path::PathBuf>,
-    },
+pub enum ExportCommands {
+    Customers(ExportCustomerArgs),
+    Items,
+}
+
+#[cfg(feature = "cmd-export")]
+#[derive(Debug, PartialEq, Subcommand)]
+pub enum GetCommands {
+    Customer,
+    Item,
+}
+
+#[derive(clap::Args, Debug, PartialEq)]
+pub struct ExportCustomerArgs {
+    #[arg(long)]
+    pub r#where: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -51,7 +79,9 @@ impl OutputFormat {
     pub const fn as_str(&self) -> &str {
         match self {
             Self::Json => "json",
+            #[cfg(feature = "toml")]
             Self::Toml => "toml",
+            #[cfg(feature = "yaml")]
             Self::Yaml => "yaml",
         }
     }
@@ -70,9 +100,11 @@ impl FromStr for OutputFormat {
     fn from_str(format: &str) -> Result<Self, Self::Err> {
         match format {
             "json" => Ok(Self::Json),
+            #[cfg(feature = "toml")]
             "toml" => Ok(Self::Toml),
+            #[cfg(feature = "yaml")]
             "yaml" => Ok(Self::Yaml),
-            _ => Err("Could not parse format (OutputFormat)"),
+            _ => Err("Could not parse output format"),
         }
     }
 }

@@ -50,27 +50,29 @@ impl Config {
         }
     }
 
-    pub fn get_example_yaml() -> String {
+    pub fn get_example_json() -> Result<String, serde_json::Error> {
         let example = Self::get_dummy_config();
-
-        return serde_yaml::to_string(&example)
-            .expect("failed to serialize example config to YAML");
+        serde_json::to_string_pretty(&example)
     }
 
     /// read config file, or write example config and exit the program
     pub fn read_or_write_and_exit(base_path: &str) -> Self {
-        // this should always panic
+        /// this should always exit
         fn fail(config: Result<Config, fs::Error>, base_path: &str) -> ! {
             let error = config.expect_err("programming error");
 
             log::error!(
-                "failed to read {}, are you sure it has all necessary values? {}",
+                "failed to read {}, are you sure it has all necessary values? {error}",
                 fs::get_possible_files(base_path),
-                error
             );
 
-            println!("EXAMPLE CONFIG ({}.yml):", base_path);
-            println!("{}", Config::get_example_yaml());
+            let example_json = Config::get_example_json().unwrap_or_else(|err| {
+                log::error!("failed to create an example JSON config file: {err}");
+                exit(-2);
+            });
+
+            eprintln!("EXAMPLE CONFIG ({}.json):", base_path);
+            eprintln!("{}", example_json);
             exit(2);
         }
 
@@ -85,9 +87,14 @@ impl Config {
                             log::error!("config file not found");
 
                             let example_config = Self::get_dummy_config();
-                            example_config.write_to(Path::new(base_path)).expect("failed to write config");
+                            example_config
+                                .write_to(Path::new(base_path))
+                                .expect("failed to write config");
 
-                            log::info!("example config written to: {}", fs::get_possible_files(base_path));
+                            log::info!(
+                                "example config written to: {}",
+                                fs::get_possible_files(base_path)
+                            );
                             exit(1);
                         } else {
                             // this should always panic (and never return)
@@ -105,13 +112,14 @@ impl Config {
         let file_type = fs::get_extension(&file);
 
         let out = match file_type.as_str() {
-            #[cfg(feature = "toml")]
-            "toml" => toml::to_string_pretty(self).expect("failed to serialize config to TOML"),
-            "yaml" | "yml" => {
-                serde_yaml::to_string(self).expect("failed to serialize config to YAML")
-            }
             "json" => {
                 serde_json::to_string_pretty(self).expect("failed to serialize config to JSON")
+            }
+            #[cfg(feature = "toml")]
+            "toml" => toml::to_string_pretty(self).expect("failed to serialize config to TOML"),
+            #[cfg(feature = "yaml")]
+            "yaml" | "yml" => {
+                serde_yaml::to_string(self).expect("failed to serialize config to YAML")
             }
             _ => {
                 panic!("this should not have happened");
@@ -124,16 +132,17 @@ impl Config {
     }
 }
 
-pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
+pub fn get_authorized_qb(quiet: bool) -> Result<Quickbooks, commands::OutputError> {
     use quickbooks_types::CompanyInfo;
 
     fn make_client(config: &Config) -> Quickbooks {
-        let config = config.clone();
-
-        let token = config.token.unwrap_or_else(|| {
+        let token = config.token.clone().unwrap_or_else(|| {
             log::error!("QuickBooks OAuth workflow is not implemented; `token` is currently required in the config.");
-            println!("EXAMPLE CONFIG (.yml):");
-            println!("{}", Config::get_example_yaml());
+            eprintln!("EXAMPLE CONFIG (.json):");
+            eprintln!("{}", Config::get_example_json().unwrap_or_else(|err| {
+                log::error!("failed to create example JSON config: {err}");
+                exit(-1);
+            }));
             exit(1);
         });
 
@@ -142,20 +151,20 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
             client_secret: config::CLIENT_SECRET.to_string(),
 
             base_url: QB_BASE_URL.to_string(),
-            company_id: config.company_id,
+            company_id: config.company_id.clone(),
             token,
             api: None,
         };
 
-        return Quickbooks::from(cfg);
+        Quickbooks::from(cfg)
     }
 
     fn print_company_info(company_info: &CompanyInfo) {
-        println!("COMPANY INFO:");
-        println!("Company name: {}", company_info.company_name);
-        println!("Legal name:   {}", company_info.legal_name);
-        println!("Company address: {}", company_info.company_addr);
-        println!("Legal address:   {}", company_info.legal_addr);
+        log::info!("COMPANY INFO:");
+        log::info!("Company name: {}", company_info.company_name);
+        log::info!("Legal name:   {}", company_info.legal_name);
+        log::info!("Company address: {}", company_info.company_addr);
+        log::info!("Legal address:   {}", company_info.legal_addr);
     }
 
     let mut config = Config::read_or_write_and_exit(BASE_CONFIG_PATH);
@@ -172,24 +181,30 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
     if !has_refresh {
         log::error!("FATAL: no refresh token found");
 
-        println!("EXAMPLE CONFIG (.yml):");
-        println!("{}", Config::get_example_yaml());
+        eprintln!("EXAMPLE CONFIG (.yml):");
+        eprintln!(
+            "{}",
+            Config::get_example_json().unwrap_or_else(|err| {
+                log::error!("failed to create example JSON config: {err}");
+                exit(2);
+            })
+        );
 
-        println!();
+        eprintln!();
 
         unimplemented!("need to set up an HTTPS redirect URI handler");
 
         // consent URL needed to retrieve authorization code, which needs to be exchanged for access and refresh tokens
         //let consent_url = qb.user_consent_url();
 
-        //println!("######################################################################");
-        //println!("###                          CONSENT URL                           ###");
-        //println!("###                                                                ###");
-        //println!("{}", consent_url);
-        //println!("###                                                                ###");
-        //println!("###   You must open the URL above to authorize this application.   ###");
-        //println!("###                                                                ###");
-        //println!("### Once completed, paste the contents of the web page into here:  ###");
+        //eprintln!("######################################################################");
+        //eprintln!("###                          CONSENT URL                           ###");
+        //eprintln!("###                                                                ###");
+        //eprintln!("{}", consent_url);
+        //eprintln!("###                                                                ###");
+        //eprintln!("###   You must open the URL above to authorize this application.   ###");
+        //eprintln!("###                                                                ###");
+        //eprintln!("### Once completed, paste the contents of the web page into here:  ###");
         //let mut resp = String::new();
         //let stdin = std::io::stdin();
         //let auth_code: serde_json::Value = loop {
@@ -198,8 +213,8 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
         //        break ret;
         //    }
         //};
-        //println!("###                                                                ###");
-        //println!("######################################################################");
+        //eprintln!("###                                                                ###");
+        //eprintln!("######################################################################");
     }
 
     match qb.company_info() {
@@ -239,7 +254,7 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
                             }
                             Err(err) => {
                                 log::error!("failed to refresh access token: {}", err);
-                                println!(
+                                eprintln!(
                                     "Try generating a new refresh token and placing it in {}",
                                     fs::get_possible_files(BASE_CONFIG_PATH)
                                 );
@@ -248,18 +263,16 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
                         }
                     } else {
                         let status_code = StatusCode::from_u16(status_code)
-                            .expect("ureq reported an invalid status code");
+                            .expect("ureq not to report an invalid status code");
                         log::error!(
-                            "Status code: {} ({})",
-                            status_code,
+                            "Status code: {status_code} ({})",
                             status_code.canonical_reason().unwrap_or("unknown")
                         );
                     }
                 }
                 Error::Transport(transport) => {
                     log::error!(
-                        "Transport error occured while attempting to retrieve company info: {}",
-                        transport
+                        "Transport error occured while attempting to retrieve company info: {transport}"
                     );
                     exit(3);
                 }
@@ -278,5 +291,5 @@ pub fn get_authorized_qb(quiet: bool) -> Quickbooks {
         }
     }
 
-    return make_client(&config);
+    Ok(make_client(&config))
 }

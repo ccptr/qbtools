@@ -1,49 +1,56 @@
-use std::{path::PathBuf, process::exit};
+use super::{get_desired_array, to_output_path, we_do_a_bit_of_logging, CommandError};
+use crate::args::{ExportCustomerArgs, OutputFormat};
 
-use crate::{args::OutputFormat, config::get_authorized_qb};
+use quickbooks_ureq::config::QueryConfig;
 
-use super::to_output_path;
+use std::path::PathBuf;
 
-#[derive(Debug, PartialEq)]
-pub struct ExportItemsArgs {
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExportArgs {
+    pub format: Option<OutputFormat>,
+    pub output_path: Option<PathBuf>,
+    pub pretty: bool,
     pub quiet: bool,
     pub verbose: bool,
-    pub output_path: Option<PathBuf>,
-    pub format: OutputFormat,
 }
 
-pub fn items(args: &ExportItemsArgs) {
-    let qb = get_authorized_qb(args.quiet);
-
-    match qb.query_items(Default::default()) {
-        Ok(response) => {
-            let response: serde_json::Value = response
-                .into_json()
-                .expect("failed to serialize response into a serde_json::Value");
-
-            let items = response
-                .get("QueryResponse")
-                .expect("unexpected response reveived from QuickBooks API")
-                .get("Item")
-                .expect("unexpected response reveived from QuickBooks API");
-
-            let items = items
-                .as_array()
-                .expect("unexpected response reveived from QuickBooks API");
-
-            if args.verbose {
-                println!("Number of items: {}", items.len());
-            }
-
-            if items.len() >= 1000 {
-                log::error!("Number of items is equal to 1,000; if you have more than 1,000 items, not all of them have been written to --output-path");
-            }
-
-            to_output_path(items, &args.output_path, &args.format)
-        }
-        Err(err) => {
-            log::error!("failed to fetch items (products & services): {}", err);
-            exit(1);
-        }
+pub fn customers(
+    args: &ExportArgs,
+    customer_args: &ExportCustomerArgs,
+) -> Result<(), CommandError> {
+    let options = QueryConfig {
+        r#where: customer_args
+            .r#where
+            .as_ref()
+            .map(|r#where| r#where.as_str()),
+        ..Default::default()
     };
+
+    let customers = get_desired_array(args.quiet, "Customer", &options)?;
+    let customers = customers
+        .as_array()
+        .expect("to be guaranteed by the QB API");
+
+    we_do_a_bit_of_logging(customers, "customers");
+
+    Ok(to_output_path(
+        customers,
+        &args.output_path,
+        &args.format.clone().unwrap_or_default(),
+        args.pretty,
+    )?)
+}
+
+pub fn items(args: &ExportArgs) -> Result<(), CommandError> {
+    let items = get_desired_array(args.quiet, "Item", &Default::default())?;
+    let items = items.as_array().expect("to be guaranteed by the QB API");
+
+    we_do_a_bit_of_logging(items, "items");
+
+    Ok(to_output_path(
+        items,
+        &args.output_path,
+        &args.format.clone().unwrap_or_default(),
+        args.pretty,
+    )?)
 }
